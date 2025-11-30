@@ -2,9 +2,10 @@ import redis
 from redis.exceptions import ConnectionError
 import pickle
 import logging
-from typing import Dict, Optional, Protocol, List
+from typing import Dict, Optional, Protocol, List, Any
 
 from jarvais import Analyzer
+from jarvais.trainer import TrainerSupervised
 from .config import settings
 
 logger = logging.getLogger(__name__)
@@ -39,12 +40,13 @@ class RedisStorage:
     
     def __init__(self, redis_client: redis.Redis):
         self.redis_client = redis_client
-        self.key_prefix = "analyzer:"
+        self.analyzer_prefix = "analyzer:"
+        self.trainer_prefix = "trainer:"
     
     def exists(self, analyzer_id: str) -> bool:
         """Check if analyzer exists in Redis."""
         try:
-            return self.redis_client.exists(f"{self.key_prefix}{analyzer_id}") == 1
+            return self.redis_client.exists(f"{self.analyzer_prefix}{analyzer_id}") == 1
         except ConnectionError as e: 
             logger.error(f"Redis connection error: {e}")
             return False
@@ -53,25 +55,59 @@ class RedisStorage:
         """Store analyzer instance in Redis."""
         serialized = pickle.dumps(analyzer)
         self.redis_client.setex(
-            f"{self.key_prefix}{analyzer_id}",
+            f"{self.analyzer_prefix}{analyzer_id}",
             settings.session_ttl,
             serialized
         )
     
     def get(self, analyzer_id: str) -> Optional[Analyzer]:
         """Retrieve analyzer instance from Redis."""
-        serialized = self.redis_client.get(f"{self.key_prefix}{analyzer_id}")
+        serialized = self.redis_client.get(f"{self.analyzer_prefix}{analyzer_id}")
         if serialized:
             return pickle.loads(serialized) # type: ignore
         return None
     
     def delete(self, analyzer_id: str) -> bool:
         """Delete analyzer instance from Redis."""
-        return self.redis_client.delete(f"{self.key_prefix}{analyzer_id}") > 0 # type: ignore
+        return self.redis_client.delete(f"{self.analyzer_prefix}{analyzer_id}") > 0 # type: ignore
     
     def list_ids(self) -> List[str]:
         """List all analyzer IDs in Redis."""
-        keys = self.redis_client.keys(f"{self.key_prefix}*")
+        keys = self.redis_client.keys(f"{self.analyzer_prefix}*")
+        return [key.decode('utf-8').split(':', 1)[1] for key in keys] # type: ignore
+    
+    # Trainer-specific methods
+    def exists_trainer(self, trainer_id: str) -> bool:
+        """Check if trainer exists in Redis."""
+        try:
+            return self.redis_client.exists(f"{self.trainer_prefix}{trainer_id}") == 1
+        except ConnectionError as e:
+            logger.error(f"Redis connection error: {e}")
+            return False
+    
+    def store_trainer(self, trainer_id: str, trainer_data: Dict[str, Any]) -> None:
+        """Store trainer data in Redis."""
+        serialized = pickle.dumps(trainer_data)
+        self.redis_client.setex(
+            f"{self.trainer_prefix}{trainer_id}",
+            settings.session_ttl,
+            serialized
+        )
+    
+    def get_trainer(self, trainer_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieve trainer data from Redis."""
+        serialized = self.redis_client.get(f"{self.trainer_prefix}{trainer_id}")
+        if serialized:
+            return pickle.loads(serialized) # type: ignore
+        return None
+    
+    def delete_trainer(self, trainer_id: str) -> bool:
+        """Delete trainer from Redis."""
+        return self.redis_client.delete(f"{self.trainer_prefix}{trainer_id}") > 0 # type: ignore
+    
+    def list_trainer_ids(self) -> List[str]:
+        """List all trainer IDs in Redis."""
+        keys = self.redis_client.keys(f"{self.trainer_prefix}*")
         return [key.decode('utf-8').split(':', 1)[1] for key in keys] # type: ignore
 
 
@@ -80,6 +116,7 @@ class MemoryStorage:
     
     def __init__(self):
         self.analyzers: Dict[str, Analyzer] = {}
+        self.trainers: Dict[str, Dict[str, Any]] = {}
     
     def exists(self, analyzer_id: str) -> bool:
         """Check if analyzer exists in memory."""
@@ -103,6 +140,30 @@ class MemoryStorage:
     def list_ids(self) -> List[str]:
         """List all analyzer IDs in memory."""
         return list(self.analyzers.keys())
+    
+    # Trainer-specific methods
+    def exists_trainer(self, trainer_id: str) -> bool:
+        """Check if trainer exists in memory."""
+        return trainer_id in self.trainers
+    
+    def store_trainer(self, trainer_id: str, trainer_data: Dict[str, Any]) -> None:
+        """Store trainer data in memory."""
+        self.trainers[trainer_id] = trainer_data
+    
+    def get_trainer(self, trainer_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieve trainer data from memory."""
+        return self.trainers.get(trainer_id)
+    
+    def delete_trainer(self, trainer_id: str) -> bool:
+        """Delete trainer from memory."""
+        if trainer_id in self.trainers:
+            del self.trainers[trainer_id]
+            return True
+        return False
+    
+    def list_trainer_ids(self) -> List[str]:
+        """List all trainer IDs in memory."""
+        return list(self.trainers.keys())
 
 
 class StorageManager:
@@ -156,6 +217,27 @@ class StorageManager:
     def list_analyzer_ids(self) -> List[str]:
         """List all analyzer IDs."""
         return self.backend.list_ids()
+    
+    # Trainer management methods
+    def check_trainer(self, trainer_id: str) -> bool:
+        """Check if trainer exists."""
+        return self.backend.exists_trainer(trainer_id)
+    
+    def store_trainer(self, trainer_id: str, trainer_data: Dict[str, Any]) -> None:
+        """Store trainer data."""
+        self.backend.store_trainer(trainer_id, trainer_data)
+    
+    def get_trainer(self, trainer_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieve trainer data."""
+        return self.backend.get_trainer(trainer_id)
+    
+    def delete_trainer(self, trainer_id: str) -> bool:
+        """Delete trainer."""
+        return self.backend.delete_trainer(trainer_id)
+    
+    def list_trainer_ids(self) -> List[str]:
+        """List all trainer IDs."""
+        return self.backend.list_trainer_ids()
     
     def health_check(self) -> dict:
         """Perform health check on storage backend."""

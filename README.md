@@ -76,6 +76,21 @@ uvicorn src.main:app --host 0.0.0.0 --port 5000 --reload
 - **GET** `/analyzers/{analyzer_id}` - Get analyzer info
 - **DELETE** `/analyzers/{analyzer_id}` - Delete analyzer
 
+### Trainer (Machine Learning)
+- **POST** `/trainers` - Create and train a model
+- **GET** `/trainers` - List all trainers
+- **GET** `/trainers/{trainer_id}` - Get trainer info
+- **GET** `/trainers/{trainer_id}/results` - Get training results
+- **DELETE** `/trainers/{trainer_id}` - Delete trainer
+
+See [TRAINER_API.md](TRAINER_API.md) for detailed Trainer API documentation.
+
+### Inference (Predictions)
+- **POST** `/trainers/{trainer_id}/infer` - Generate predictions from CSV file
+- **POST** `/trainers/{trainer_id}/infer/json` - Generate predictions from JSON
+
+See [INFERENCE_API.md](INFERENCE_API.md) for detailed Inference API documentation.
+
 ### System
 - **GET** `/health` - Health check
 
