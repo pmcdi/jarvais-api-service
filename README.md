@@ -25,6 +25,8 @@ curl -fsSL https://pixi.sh/install.sh | bash
 pixi install
 ```
 
+#### OR install Docker
+
 ### 2. Run the Application
 
 #### Development Mode
@@ -51,14 +53,23 @@ pixi shell
 python run_fastapi.py
 
 # Or use uvicorn directly
-uvicorn src.main:app --host 0.0.0.0 --port 5000 --reload
+uvicorn src.main:app --host 0.0.0.0 --port 8888 --reload
+```
+
+#### Via Docker
+```bash
+# Build the Docker image
+docker build . 
+
+# Spin up Docker compose and detach to run in background
+docker compose up -d
 ```
 
 ### 3. Access the API
 
-- **API Documentation**: http://localhost:5000/docs
-- **Alternative Docs**: http://localhost:5000/redoc
-- **Health Check**: http://localhost:5000/health
+- **API Documentation**: http://localhost:8888/docs
+- **Alternative Docs**: http://localhost:8888/redoc
+- **Health Check**: http://localhost:8888/health
 
 ## API Endpoints
 
@@ -83,13 +94,9 @@ uvicorn src.main:app --host 0.0.0.0 --port 5000 --reload
 - **GET** `/trainers/{trainer_id}/results` - Get training results
 - **DELETE** `/trainers/{trainer_id}` - Delete trainer
 
-See [TRAINER_API.md](TRAINER_API.md) for detailed Trainer API documentation.
-
 ### Inference (Predictions)
 - **POST** `/trainers/{trainer_id}/infer` - Generate predictions from CSV file
 - **POST** `/trainers/{trainer_id}/infer/json` - Generate predictions from JSON
-
-See [INFERENCE_API.md](INFERENCE_API.md) for detailed Inference API documentation.
 
 ### System
 - **GET** `/health` - Health check
