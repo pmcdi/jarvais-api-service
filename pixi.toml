@@ -1,8 +1,8 @@
 [project]
 authors = ["skim2257 <Sejin Kim>"]
 channels = ["conda-forge"]
-description = "Microservice to return jarvAIs Analyzer results compatible with HighCharts using FastAPI"
-name = "jarvais-highcharts-service"
+description = "Microservice API for jarvAIs Analyzer, Trainer, and Inference services using FastAPI"
+name = "jarvais-api-service"
 platforms = ["osx-64", "linux-64", "win-64", "linux-aarch64"]
 version = "1.2.0"
 

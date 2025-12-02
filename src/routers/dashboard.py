@@ -8,7 +8,7 @@ from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, HTTPException, Path, Request
 from pydantic import BaseModel, Field
 
-from ..plot import get_dashboard_json
+from ..modules.plot import get_dashboard_json
 from ..storage import storage_manager
 from ..config import settings
 from ..utils.rate_limit import apply_rate_limit
