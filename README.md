@@ -1,6 +1,6 @@
-# Jarvais Highcharts Service - FastAPI Version
+# Jarvais API Service
 
-This is the FastAPI version of the Jarvais Highcharts Service, converted from the original Flask implementation. FastAPI provides better performance, automatic API documentation, and improved type safety.
+Microservice API for jarvAIs Analyzer, Trainer, and Inference services. Built with FastAPI for better performance, automatic API documentation, and improved type safety.
 
 ## Features
 
