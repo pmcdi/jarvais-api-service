@@ -15,7 +15,7 @@ from ..models import (
 )
 from ..config import settings
 from ..utils.rate_limit import apply_rate_limit
-from ..modules import jarvais_train, jarvais_infer
+from ..modules import train, infer
 
 logger = logging.getLogger(__name__)
 
@@ -48,8 +48,8 @@ async def create_trainer(
         raise HTTPException(status_code=404, detail="Analyzer not found")
     
     # Validate inputs
-    jarvais_train.validate_task_type(trainer_request.task)
-    jarvais_train.validate_feature_reduction_method(trainer_request.feature_reduction_method)
+    train.validate_task_type(trainer_request.task)
+    train.validate_feature_reduction_method(trainer_request.feature_reduction_method)
     
     # Generate unique ID for this trainer session
     trainer_id = str(uuid.uuid4())
@@ -66,7 +66,7 @@ async def create_trainer(
             raise HTTPException(status_code=404, detail="Analyzer not found")
         
         # Run training (returns output_dir path where trainer is saved)
-        saved_output_dir, training_time = jarvais_train.run_trainer(
+        saved_output_dir, training_time = train.run_trainer(
             analyzer, trainer_request, output_dir
         )
         
@@ -98,11 +98,11 @@ async def create_trainer(
         
     except HTTPException:
         # Clean up output directory on failure
-        jarvais_train.cleanup_trainer_files(output_dir)
+        train.cleanup_trainer_files(output_dir)
         raise
     except Exception as e:
         # Clean up output directory on failure
-        jarvais_train.cleanup_trainer_files(output_dir)
+        train.cleanup_trainer_files(output_dir)
         logger.error(f"Failed to create trainer: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to create trainer: {str(e)}")
 
@@ -263,7 +263,7 @@ async def delete_trainer(
         trainer_data = storage_manager.get_trainer(trainer_id)
         if trainer_data and 'output_dir' in trainer_data:
             output_dir = trainer_data['output_dir']
-            jarvais_train.cleanup_trainer_files(output_dir)
+            train.cleanup_trainer_files(output_dir)
         
         # Delete trainer from storage
         if storage_manager.delete_trainer(trainer_id):
@@ -316,7 +316,7 @@ async def infer_from_csv(
         # Read CSV file
         file_content = await file.read()
         logger.info(f"Received CSV file of size {len(file_content)} bytes")
-        df = jarvais_infer.prepare_csv_data(file_content)
+        df = infer.prepare_csv_data(file_content)
         logger.info(f"Parsed CSV to DataFrame with shape {df.shape}")
         
         # Load trainer from disk
@@ -341,17 +341,17 @@ async def infer_from_csv(
         
         # Remove target variable if present
         target_variable = trainer_data['target_variable']
-        df = jarvais_infer.remove_target_variable(df, target_variable)
+        df = infer.remove_target_variable(df, target_variable)
         logger.info(f"DataFrame after removing target: {df.shape}")
         
         # Transform inference data to match training data format
         logger.info("Transforming inference data to match training format...")
-        df = jarvais_infer.transform_inference_data(df, analyzer, target_variable)
+        df = infer.transform_inference_data(df, analyzer, target_variable)
         logger.info(f"DataFrame after transformation: {df.shape}")
         
         # Generate predictions
         logger.info(f"Starting inference for {len(df)} samples")
-        predictions_list, probabilities = jarvais_infer.perform_inference(
+        predictions_list, probabilities = infer.perform_inference(
             df, trainer_instance, trainer_data
         )
         logger.info(f"Inference completed: {len(predictions_list)} predictions, probabilities={'Yes' if probabilities else 'No'}")
@@ -405,7 +405,7 @@ async def infer_from_json(
     try:
         # Convert JSON to DataFrame
         logger.info(f"Received JSON data with {len(inference_request.data)} samples")
-        df = jarvais_infer.prepare_json_data(inference_request.data)
+        df = infer.prepare_json_data(inference_request.data)
         logger.info(f"Converted JSON to DataFrame with shape {df.shape}")
         
         # Load trainer from disk
@@ -430,17 +430,17 @@ async def infer_from_json(
         
         # Remove target variable if present
         target_variable = trainer_data['target_variable']
-        df = jarvais_infer.remove_target_variable(df, target_variable)
+        df = infer.remove_target_variable(df, target_variable)
         logger.info(f"DataFrame after removing target: {df.shape}")
         
         # Transform inference data to match training data format
         logger.info("Transforming inference data to match training format...")
-        df = jarvais_infer.transform_inference_data(df, analyzer, target_variable)
+        df = infer.transform_inference_data(df, analyzer, target_variable)
         logger.info(f"DataFrame after transformation: {df.shape}")
         
         # Generate predictions
         logger.info(f"Starting inference for {len(df)} samples")
-        predictions_list, probabilities = jarvais_infer.perform_inference(
+        predictions_list, probabilities = infer.perform_inference(
             df, trainer_instance, trainer_data
         )
         logger.info(f"Inference completed: {len(predictions_list)} predictions, probabilities={'Yes' if probabilities else 'No'}")

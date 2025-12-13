@@ -88,9 +88,16 @@ def run_trainer(analyzer, trainer_request, output_dir: str) -> Tuple[str, float]
     
     trainer = TrainerSupervised(**trainer_kwargs)
     
+    # Prefer the pre-encoding data so the target column is still present.
+    # Analyzer.data drops the raw target when one-hot encoding runs, which
+    # makes TrainerSupervised fail with "['target'] not found in axis".
+    training_df = getattr(analyzer, "input_data", None)
+    if training_df is None:
+        training_df = analyzer.data
+    
     # Run training
     start_time = datetime.now()
-    trainer.run(analyzer.data)
+    trainer.run(training_df)
     end_time = datetime.now()
     training_time = (end_time - start_time).total_seconds()
     

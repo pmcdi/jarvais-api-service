@@ -103,3 +103,8 @@ class InferenceResult(BaseModel):
     probabilities: Optional[List[List[float]]] = Field(None, description="Prediction probabilities for classification tasks")
     num_samples: int = Field(..., description="Number of samples predicted")
     created_at: str = Field(..., description="Creation timestamp")
+
+
+#
+# NOTE: Highcharts response wrapper removed.
+# Endpoints now return raw chart payloads directly.
