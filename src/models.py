@@ -108,3 +108,61 @@ class InferenceResult(BaseModel):
 #
 # NOTE: Highcharts response wrapper removed.
 # Endpoints now return raw chart payloads directly.
+
+
+# =============================================================================
+# DICOM Database Models
+# =============================================================================
+
+class DicomDatabaseCreate(BaseModel):
+    """Response model for DICOM database creation."""
+    database_id: str = Field(..., description="Unique identifier for the DICOM database")
+    created_at: str = Field(..., description="Creation timestamp")
+    message: str = Field(..., description="Status message")
+
+
+class DicomPatientUpload(BaseModel):
+    """Request model for uploading a single patient record."""
+    # Accepts any key-value pairs as DICOM tags
+    class Config:
+        extra = "allow"
+
+
+class DicomPatientsUpload(BaseModel):
+    """Request model for uploading multiple patient records."""
+    patients: List[Dict[str, Any]] = Field(..., description="List of patient records as DICOM tag key-value pairs")
+
+
+class DicomUploadResponse(BaseModel):
+    """Response model for patient upload operations."""
+    database_id: str = Field(..., description="DICOM database identifier")
+    patients_added: int = Field(..., description="Number of patients added")
+    total_patients: int = Field(..., description="Total patients in database")
+    message: str = Field(..., description="Status message")
+
+
+class DicomDatabaseInfo(BaseModel):
+    """Response model for DICOM database information."""
+    database_id: str = Field(..., description="Unique identifier for the DICOM database")
+    patient_count: int = Field(..., description="Number of patients in the database")
+    keys: List[str] = Field(..., description="List of all unique DICOM tag keys in the database")
+    created_at: str = Field(..., description="Creation timestamp")
+
+
+class DicomDatabaseListItem(BaseModel):
+    """List item for DICOM databases."""
+    database_id: str = Field(..., description="Unique identifier for the DICOM database")
+    patient_count: int = Field(..., description="Number of patients in the database")
+
+
+class DicomDatabaseList(BaseModel):
+    """Response model for listing DICOM databases."""
+    count: int = Field(..., description="Number of databases")
+    databases: List[DicomDatabaseListItem] = Field(..., description="List of databases")
+
+
+class DicomDashboardResponse(BaseModel):
+    """Response model for DICOM dashboard creation."""
+    database_id: str = Field(..., description="DICOM database identifier")
+    analyzer_id: str = Field(..., description="Created analyzer identifier")
+    message: str = Field(..., description="Status message")

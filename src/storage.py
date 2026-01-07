@@ -3,12 +3,53 @@ from redis.exceptions import ConnectionError
 import pickle
 import logging
 from typing import Dict, Optional, Protocol, List, Any
+from datetime import datetime
 
 from jarvais import Analyzer
 from jarvais.trainer import TrainerSupervised
 from .config import settings
 
 logger = logging.getLogger(__name__)
+
+
+class DicomDatabase:
+    """In-memory representation of a DICOM patient database."""
+    
+    def __init__(self, database_id: str):
+        self.database_id = database_id
+        self.patients: List[Dict[str, Any]] = []
+        self.created_at = datetime.now().isoformat()
+    
+    def add_patient(self, patient_data: Dict[str, Any]) -> int:
+        """Add a single patient record. Returns the patient index."""
+        self.patients.append(patient_data)
+        return len(self.patients) - 1
+    
+    def add_patients(self, patients_data: List[Dict[str, Any]]) -> int:
+        """Add multiple patient records. Returns the number added."""
+        self.patients.extend(patients_data)
+        return len(patients_data)
+    
+    def get_patient_count(self) -> int:
+        """Get the number of patients in the database."""
+        return len(self.patients)
+    
+    def get_all_keys(self) -> List[str]:
+        """Get all unique keys across all patient records."""
+        keys = set()
+        for patient in self.patients:
+            keys.update(patient.keys())
+        return sorted(list(keys))
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert database to a dictionary for serialization."""
+        return {
+            'database_id': self.database_id,
+            'patients': self.patients,
+            'created_at': self.created_at,
+            'patient_count': len(self.patients),
+            'keys': self.get_all_keys()
+        }
 
 
 class StorageBackend(Protocol):
@@ -109,6 +150,40 @@ class RedisStorage:
         """List all trainer IDs in Redis."""
         keys = self.redis_client.keys(f"{self.trainer_prefix}*")
         return [key.decode('utf-8').split(':', 1)[1] for key in keys] # type: ignore
+    
+    # DICOM Database methods
+    def exists_dicom(self, database_id: str) -> bool:
+        """Check if DICOM database exists in Redis."""
+        try:
+            return self.redis_client.exists(f"dicom:{database_id}") == 1
+        except ConnectionError as e:
+            logger.error(f"Redis connection error: {e}")
+            return False
+    
+    def store_dicom(self, database_id: str, database: DicomDatabase) -> None:
+        """Store DICOM database in Redis."""
+        serialized = pickle.dumps(database)
+        self.redis_client.setex(
+            f"dicom:{database_id}",
+            settings.session_ttl,
+            serialized
+        )
+    
+    def get_dicom(self, database_id: str) -> Optional[DicomDatabase]:
+        """Retrieve DICOM database from Redis."""
+        serialized = self.redis_client.get(f"dicom:{database_id}")
+        if serialized:
+            return pickle.loads(serialized)  # type: ignore
+        return None
+    
+    def delete_dicom(self, database_id: str) -> bool:
+        """Delete DICOM database from Redis."""
+        return self.redis_client.delete(f"dicom:{database_id}") > 0  # type: ignore
+    
+    def list_dicom_ids(self) -> List[str]:
+        """List all DICOM database IDs in Redis."""
+        keys = self.redis_client.keys("dicom:*")
+        return [key.decode('utf-8').split(':', 1)[1] for key in keys]  # type: ignore
 
 
 class MemoryStorage:
@@ -117,6 +192,7 @@ class MemoryStorage:
     def __init__(self):
         self.analyzers: Dict[str, Analyzer] = {}
         self.trainers: Dict[str, Dict[str, Any]] = {}
+        self.dicom_databases: Dict[str, DicomDatabase] = {}
     
     def exists(self, analyzer_id: str) -> bool:
         """Check if analyzer exists in memory."""
@@ -164,6 +240,30 @@ class MemoryStorage:
     def list_trainer_ids(self) -> List[str]:
         """List all trainer IDs in memory."""
         return list(self.trainers.keys())
+    
+    # DICOM Database methods
+    def exists_dicom(self, database_id: str) -> bool:
+        """Check if DICOM database exists in memory."""
+        return database_id in self.dicom_databases
+    
+    def store_dicom(self, database_id: str, database: DicomDatabase) -> None:
+        """Store DICOM database in memory."""
+        self.dicom_databases[database_id] = database
+    
+    def get_dicom(self, database_id: str) -> Optional[DicomDatabase]:
+        """Retrieve DICOM database from memory."""
+        return self.dicom_databases.get(database_id)
+    
+    def delete_dicom(self, database_id: str) -> bool:
+        """Delete DICOM database from memory."""
+        if database_id in self.dicom_databases:
+            del self.dicom_databases[database_id]
+            return True
+        return False
+    
+    def list_dicom_ids(self) -> List[str]:
+        """List all DICOM database IDs in memory."""
+        return list(self.dicom_databases.keys())
 
 
 class StorageManager:
@@ -238,6 +338,27 @@ class StorageManager:
     def list_trainer_ids(self) -> List[str]:
         """List all trainer IDs."""
         return self.backend.list_trainer_ids()
+    
+    # DICOM database management methods
+    def check_dicom(self, database_id: str) -> bool:
+        """Check if DICOM database exists."""
+        return self.backend.exists_dicom(database_id)
+    
+    def store_dicom(self, database_id: str, database: DicomDatabase) -> None:
+        """Store DICOM database."""
+        self.backend.store_dicom(database_id, database)
+    
+    def get_dicom(self, database_id: str) -> Optional[DicomDatabase]:
+        """Retrieve DICOM database."""
+        return self.backend.get_dicom(database_id)
+    
+    def delete_dicom(self, database_id: str) -> bool:
+        """Delete DICOM database."""
+        return self.backend.delete_dicom(database_id)
+    
+    def list_dicom_ids(self) -> List[str]:
+        """List all DICOM database IDs."""
+        return self.backend.list_dicom_ids()
     
     def health_check(self) -> dict:
         """Perform health check on storage backend."""
