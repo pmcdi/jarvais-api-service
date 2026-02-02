@@ -8,17 +8,18 @@ from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, HTTPException, Path, Request
 from pydantic import BaseModel, Field
 
-from ..modules.plot import get_dashboard_json
+from ..modules.plot import get_dashboard_json, get_explainer_dashboard
+from ..modules.explain import load_trainer
 from ..storage import storage_manager
 from ..config import settings
 from ..utils.rate_limit import apply_rate_limit
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/dashboard", tags=["dashboard"])
+router = APIRouter(prefix="/analyzers", tags=["dashboard"])
 
 
-@router.get("/{analyzer_id}")
+@router.get("/{analyzer_id}/dashboard")
 @apply_rate_limit(settings.rate_limit_visualization)
 async def get_dashboard(
     request: Request,
@@ -85,3 +86,26 @@ async def get_dashboard(
     except Exception as e:
         logger.error(f"Failed to generate dashboard: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to generate dashboard: {str(e)}")
+
+
+train_router = APIRouter(prefix="/trainers", tags=["explainer-dashboard"])
+
+
+@train_router.get("/{trainer_id}/dashboard")
+@apply_rate_limit(settings.rate_limit_general)
+async def explainer_dashboard(
+    request: Request,
+    trainer_id: str = Path(..., description="Trainer identifier"),
+):
+    """Return a collection of Highcharts configs summarizing model explainability."""
+    trainer = load_trainer(trainer_id)
+    try:
+        charts = get_explainer_dashboard(trainer)
+        return charts
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Failed to build explainer dashboard: %s", exc)
+        raise HTTPException(status_code=500, detail="Failed to build explainer dashboard") from exc
+
+

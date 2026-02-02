@@ -13,6 +13,9 @@ test-server = "python run_fastapi.py"
 test = "python tests/test_fastapi.py"
 docs = "echo 'API docs available at http://localhost:8888/docs'"
 
+[environments]
+test = { features = ["test"] }
+
 [activation.env]
 HOST="0.0.0.0"
 PORT="8888"
@@ -23,6 +26,7 @@ REDIS_PORT="6379"
 python = "3.12.*"
 redis-py = ">=5.0.1,<6"
 requests = ">=2.31.0,<3"
+pytest = ">=9.0.2,<10"
 
 [pypi-dependencies]
 fastapi = ">=0.104.1,<0.105"
@@ -33,6 +37,10 @@ slowapi = ">=0.1.9,<0.2"
 umap-learn = ">=0.5.5,<0.6"
 typing_extensions = ">=4.14.1,<5"
 jarvais = ">=0.20.0, <0.21"
+httpx = ">=0.24,<0.28"
+
+[feature.test.pypi-dependencies]
+pytest = "*"
 
 
 

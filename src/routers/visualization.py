@@ -2,11 +2,11 @@ import logging
 import traceback
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query, Path, Request
+from fastapi import APIRouter, HTTPException, Path, Query, Request
 
-from ..modules.plot import get_corr_heatmap_json, get_freq_heatmaps_json, get_pie_chart_json, get_umap_json, get_violin_plot_json, get_box_plot_json #, get_grouped_box_plot_json
-from ..storage import storage_manager
 from ..config import settings
+from ..modules.plot import get_box_plot_json, get_corr_heatmap_json, get_freq_heatmaps_json, get_pie_chart_json, get_umap_json, get_violin_plot_json
+from ..storage import storage_manager
 from ..utils.rate_limit import apply_rate_limit
 
 logger = logging.getLogger(__name__)
